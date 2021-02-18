@@ -11,18 +11,18 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	autoscaler "k8s.io/api/autoscaling/v2beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	dynamic_informer "k8s.io/client-go/dynamic/dynamicinformer"
+	"k8s.io/client-go/dynamic/fake"
 	kube_informer "k8s.io/client-go/informers"
 	kube_fake "k8s.io/client-go/kubernetes/fake"
+	"k8s.io/client-go/kubernetes/scheme"
 
 	"github.com/DataDog/datadog-agent/pkg/clusteragent/externalmetrics/model"
-	datadoghq "github.com/DataDog/watermarkpodautoscaler/pkg/apis/datadoghq/v1alpha1"
-	dd_fake_clientset "github.com/DataDog/watermarkpodautoscaler/pkg/client/clientset/versioned/fake"
-	wpa_informer "github.com/DataDog/watermarkpodautoscaler/pkg/client/informers/externalversions"
-
-	"github.com/stretchr/testify/assert"
+	datadoghq "github.com/DataDog/watermarkpodautoscaler/api/v1alpha1"
 )
 
 // Test fixture
@@ -48,7 +48,7 @@ func newAutoscalerFixture(t *testing.T) *autoscalerFixture {
 	}
 }
 
-func (f *autoscalerFixture) newAutoscalerWatcher() (*AutoscalerWatcher, kube_informer.SharedInformerFactory, wpa_informer.SharedInformerFactory) {
+func (f *autoscalerFixture) newAutoscalerWatcher() (*AutoscalerWatcher, kube_informer.SharedInformerFactory, dynamic_informer.DynamicSharedInformerFactory) {
 	for _, hpa := range f.hpaLister {
 		f.kubeObjects = append(f.kubeObjects, hpa)
 	}
@@ -58,8 +58,8 @@ func (f *autoscalerFixture) newAutoscalerWatcher() (*AutoscalerWatcher, kube_inf
 	for _, wpa := range f.wpaLister {
 		f.wpaObjects = append(f.wpaObjects, wpa)
 	}
-	wpaClient := dd_fake_clientset.NewSimpleClientset(f.wpaObjects...)
-	wpaInformer := wpa_informer.NewSharedInformerFactory(wpaClient, noResyncPeriodFunc())
+	wpaClient := fake.NewSimpleDynamicClient(scheme.Scheme, f.wpaObjects...)
+	wpaInformer := dynamic_informer.NewDynamicSharedInformerFactory(wpaClient, noResyncPeriodFunc())
 
 	autoscalerWatcher, err := NewAutoscalerWatcher(0, 1, "default", kubeInformer, wpaInformer, getIsLeaderFunction(true), &f.store)
 	if err != nil {
@@ -73,7 +73,7 @@ func (f *autoscalerFixture) newAutoscalerWatcher() (*AutoscalerWatcher, kube_inf
 	}
 
 	for _, wpa := range f.wpaLister {
-		wpaInformer.Datadoghq().V1alpha1().WatermarkPodAutoscalers().Informer().GetIndexer().Add(wpa)
+		wpaInformer.ForResource(*gvr).Informer().GetIndexer().Add(wpa)
 	}
 
 	return autoscalerWatcher, kubeInformer, wpaInformer
