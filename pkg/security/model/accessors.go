@@ -6315,7 +6315,7 @@ func (e *Event) SetFieldValue(field eval.Field, value interface{}) error {
 		if !ok {
 			return &eval.ErrValueTypeMismatch{Field: "Chown.GID"}
 		}
-		e.Chown.GID = int32(v)
+		e.Chown.GID = uint32(v)
 		return nil
 
 	case "chown.file.destination.group":
@@ -6333,7 +6333,7 @@ func (e *Event) SetFieldValue(field eval.Field, value interface{}) error {
 		if !ok {
 			return &eval.ErrValueTypeMismatch{Field: "Chown.UID"}
 		}
-		e.Chown.UID = int32(v)
+		e.Chown.UID = uint32(v)
 		return nil
 
 	case "chown.file.destination.user":
