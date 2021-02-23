@@ -19,6 +19,10 @@ import (
 */
 import "C"
 
+const (
+	maxNbCpus = 256
+)
+
 type TCPQueueLengthTracer struct {
 	m        *bpflib.Module
 	statsMap *bpflib.Table
@@ -93,22 +97,30 @@ func (t *TCPQueueLengthTracer) Get() TCPQueueLengthStats {
 		log.Errorf("Failed to get online CPUs: %v", err)
 		return TCPQueueLengthStats{}
 	}
+	log.Debugf("cpuonline.Get() -> %#v\n", cpus)
 
 	result := make(TCPQueueLengthStats)
 
 	for it := t.statsMap.Iter(); it.Next(); {
 		var statsKey C.struct_stats_key
 		data := it.Key()
+		log.Debugf("Key before: %s\n", data)
 		C.memcpy(unsafe.Pointer(&statsKey), unsafe.Pointer(&data[0]), C.sizeof_struct_stats_key)
+		log.Debugf("Key after: %s\n", data)
 		containerID := C.GoString(&statsKey.cgroup_name[0])
+		log.Debugf("containerID: %s\n", containerID)
 
-		var statsValue [256]C.struct_stats_value
+		var statsValue [maxNbCpus]C.struct_stats_value
 		data = it.Leaf()
-		C.memcpy(unsafe.Pointer(&statsValue), unsafe.Pointer(&data[0]), C.sizeof_struct_stats_value*C.ulong(len(cpus)))
+		nbCpus := len(cpus)
+		if nbCpus > maxNbCpus {
+			nbCpus = maxNbCpus
+		}
+		C.memcpy(unsafe.Pointer(&statsValue), unsafe.Pointer(&data[0]), C.sizeof_struct_stats_value*C.ulong(nbCpus))
 
 		max := TCPQueueLengthStatsValue{}
 		for _, cpu := range cpus {
-			if cpu > 256 {
+			if cpu >= maxNbCpus {
 				log.Error("Too many CPUs")
 				continue
 			}
@@ -122,6 +134,7 @@ func (t *TCPQueueLengthTracer) Get() TCPQueueLengthStats {
 		result[containerID] = max
 	}
 
+	log.Debugf("(t *TCPQueueLengthTracer) Get() result: %#v", result)
 	return result
 }
 
