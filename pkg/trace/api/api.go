@@ -28,6 +28,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/tinylib/msgp/msgp"
 
 	mainconfig "github.com/DataDog/datadog-agent/pkg/config"
@@ -488,6 +489,7 @@ func (r *HTTPReceiver) handleTraces(v Version, w http.ResponseWriter, req *http.
 	}
 
 	if droppedP0s := req.Header.Get(headerDroppedP0Traces); droppedP0s != "" {
+		spew.Dump(droppedP0s)
 		count, err := strconv.ParseInt(droppedP0s, 10, 64)
 		if err != nil {
 			payload.ClientDroppedP0s = count
@@ -495,11 +497,13 @@ func (r *HTTPReceiver) handleTraces(v Version, w http.ResponseWriter, req *http.
 		}
 	}
 	if droppedP0s := req.Header.Get(headerDroppedP0Spans); droppedP0s != "" {
+		spew.Dump(droppedP0s)
 		count, err := strconv.ParseInt(droppedP0s, 10, 64)
 		if err != nil {
 			atomic.AddInt64(&ts.ClientDroppedP0Spans, count)
 		}
 	}
+	spew.Dump(req.Header)
 	select {
 	case r.out <- payload:
 		// ok
