@@ -348,9 +348,13 @@ const (
 	// doesn't have to.
 	headerComputedStats = "Datadog-Client-Computed-Stats"
 
-	// headderDroppedP0s contains the number of P0 trace chunks dropped by the client.
+	// headderDroppedP0Traces contains the number of P0 trace chunks dropped by the client.
 	// This value is used to adjust priority rates computed by the agent.
-	headerDroppedP0s = "Datadog-Client-Dropped-P0-Traces"
+	headerDroppedP0Traces = "Datadog-Client-Dropped-P0-Traces"
+
+	// headderDroppedP0Spans contains the number of P0 spans dropped by the client.
+	// This value is used to adjust priority rates computed by the agent.
+	headerDroppedP0Spans = "Datadog-Client-Dropped-P0-Spans"
 )
 
 func (r *HTTPReceiver) tagStats(v Version, req *http.Request) *info.TagStats {
@@ -483,10 +487,17 @@ func (r *HTTPReceiver) handleTraces(v Version, w http.ResponseWriter, req *http.
 		ClientComputedStats:    req.Header.Get(headerComputedStats) != "",
 	}
 
-	if droppedP0s := req.Header.Get(headerDroppedP0s); droppedP0s != "" {
+	if droppedP0s := req.Header.Get(headerDroppedP0Traces); droppedP0s != "" {
 		count, err := strconv.ParseInt(droppedP0s, 10, 64)
 		if err != nil {
 			payload.ClientDroppedP0s = count
+			atomic.AddInt64(&ts.ClientDroppedP0Traces, count)
+		}
+	}
+	if droppedP0s := req.Header.Get(headerDroppedP0Spans); droppedP0s != "" {
+		count, err := strconv.ParseInt(droppedP0s, 10, 64)
+		if err != nil {
+			atomic.AddInt64(&ts.ClientDroppedP0Spans, count)
 		}
 	}
 	select {
